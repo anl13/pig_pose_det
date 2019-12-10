@@ -178,7 +178,7 @@ def main():
         perf_indicator = validate(config, valid_loader, valid_dataset, model,
                                   criterion, final_output_dir, tb_log_dir,
                                   writer_dict)
-
+        print("eval epoch: ", epoch)
         if perf_indicator > best_perf:
             best_perf = perf_indicator
             best_model = True

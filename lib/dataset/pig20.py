@@ -89,7 +89,8 @@ class Pig20Dataset(JointsDataset):
         self.num_joints = 20
         self.flip_pairs = [ [1,10], [2,11], [3,12], [4, 13], [5, 14], [6, 15], [7,16],[8,17]]
         self.parent_ids = None
-
+        self.sigmas = np.array([.26,.25, .35, .79, .72, .62, 1.07, .87, .89, .30, 
+                                    .25, .35, .79, .72, .62, 1.07, .87, .89, 2.0, .35]) / 10.0
         self.db = self._get_db()
 
         if is_train and cfg.DATASET.SELECT_DATA:
@@ -282,7 +283,7 @@ class Pig20Dataset(JointsDataset):
                 'scale': all_boxes[idx][2:4],
                 'area': all_boxes[idx][4],
                 'score': all_boxes[idx][5],
-                'image': int(img_path[idx][-16:-4])
+                'image': int(img_path[idx][-8:-4])
             })
         # image x person x (keypoints)
         kpts = defaultdict(list)
@@ -310,7 +311,7 @@ class Pig20Dataset(JointsDataset):
                 # rescoring
                 n_p['score'] = kpt_score * box_score
             keep = oks_nms([img_kpts[i] for i in range(len(img_kpts))],
-                           oks_thre)
+                           oks_thre, sigmas=self.sigmas)
             if len(keep) == 0:
                 oks_nmsed_kpts.append(img_kpts)
             else:
@@ -383,7 +384,7 @@ class Pig20Dataset(JointsDataset):
 
     def _do_python_keypoint_eval(self, res_file, res_folder):
         coco_dt = self.coco.loadRes(res_file)
-        coco_eval = COCOeval(self.coco, coco_dt, 'keypoints')
+        coco_eval = COCOeval(self.coco, coco_dt, 'keypoints', kptType='pig20')
         coco_eval.params.useSegm = None
         coco_eval.evaluate()
         coco_eval.accumulate()

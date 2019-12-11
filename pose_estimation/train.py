@@ -115,7 +115,7 @@ def main():
 
     logger.info(get_model_summary(model, dump_input))
     
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2'
+    # os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2'
     model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
 
     # define loss function (criterion) and optimizer

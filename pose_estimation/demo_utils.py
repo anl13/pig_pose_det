@@ -50,6 +50,7 @@ def box_xyxy2cs(box_xyxy):
     return xywh2cs(x1,y1,x2-x1,y2-y1)
 
 # [input] img: img loaded by cv2.imread(filename) 
+# image_size=[w,h]
 def preprocess(img, boxes, mytransforms=None, image_size=[384, 288]):
     data_numpy = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     all_crops = torch.zeros((len(boxes), 3, image_size[1], image_size[0])) 

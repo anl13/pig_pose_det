@@ -66,6 +66,7 @@ class Pig20Dataset(JointsDataset):
         self.image_width = cfg.MODEL.IMAGE_SIZE[0]
         self.image_height = cfg.MODEL.IMAGE_SIZE[1]
         self.aspect_ratio = self.image_width * 1.0 / self.image_height
+        print("DEBUG: PIG20 image size: ", cfg.MODEL.IMAGE_SIZE)
         self.pixel_std = 200
         self.coco = COCO(self._get_ann_file_keypoint())
         

@@ -21,11 +21,11 @@ MODEL:
   NAME: pose_resnet
   PRETRAINED: 'models/pytorch/imagenet/resnet152-b121ed2d.pth'
   IMAGE_SIZE:
-  - 384
   - 288
+  - 384
   HEATMAP_SIZE:
-  - 96
   - 72
+  - 96
   SIGMA: 3
   NUM_JOINTS: 20
   TARGET_TYPE: 'gaussian'

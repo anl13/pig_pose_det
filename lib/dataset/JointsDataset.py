@@ -197,6 +197,7 @@ class JointsDataset(Dataset):
             'score': score
         }
 
+
         return input, target, target_weight, meta
 
     def select_data(self, db):
@@ -249,7 +250,6 @@ class JointsDataset(Dataset):
                                self.heatmap_size[1],
                                self.heatmap_size[0]),
                               dtype=np.float32)
-
             tmp_size = self.sigma * 3
 
             for joint_id in range(self.num_joints):

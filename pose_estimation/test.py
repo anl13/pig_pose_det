@@ -30,7 +30,7 @@ from utils.utils import create_logger
 
 import dataset
 import models
-
+from demo_utils import load_state_dict_module
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train keypoints network')
@@ -85,15 +85,7 @@ def main():
         cfg, is_train=False
     )
 
-    if cfg.TEST.MODEL_FILE:
-        logger.info('=> loading model from {}'.format(cfg.TEST.MODEL_FILE))
-        model.load_state_dict(torch.load(cfg.TEST.MODEL_FILE), strict=False)
-    else:
-        model_state_file = os.path.join(
-            final_output_dir, 'final_state.pth'
-        )
-        logger.info('=> loading model from {}'.format(model_state_file))
-        model.load_state_dict(torch.load(model_state_file))
+    load_state_dict_module(model, cfg.TEST.MODEL_FILE)
 
     model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
     # model = model.cuda()
@@ -114,6 +106,9 @@ def main():
             normalize,
         ])
     )
+    from termcolor import cprint 
+    cprint("eval dataset : ", "red")
+    print(cfg.DATASET.DATASET) 
     valid_loader = torch.utils.data.DataLoader(
         valid_dataset,
         batch_size=cfg.TEST.BATCH_SIZE_PER_GPU*len(cfg.GPUS),

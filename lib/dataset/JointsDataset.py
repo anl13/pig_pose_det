@@ -42,11 +42,16 @@ class JointsDataset(Dataset):
         self.scale_factor = cfg.DATASET.SCALE_FACTOR
         self.rotation_factor = cfg.DATASET.ROT_FACTOR
         self.flip = cfg.DATASET.FLIP
+        self.num_joints_half_body = cfg.DATASET.NUM_JOINTS_HALF_BODY
+        self.prob_half_body = cfg.DATASET.PROB_HALF_BODY
+        self.color_rgb = cfg.DATASET.COLOR_RGB
 
-        self.image_size = cfg.MODEL.IMAGE_SIZE
-        self.target_type = cfg.MODEL.EXTRA.TARGET_TYPE
-        self.heatmap_size = cfg.MODEL.EXTRA.HEATMAP_SIZE
-        self.sigma = cfg.MODEL.EXTRA.SIGMA
+        self.target_type = cfg.MODEL.TARGET_TYPE
+        self.image_size = np.array(cfg.MODEL.IMAGE_SIZE)
+        self.heatmap_size = np.array(cfg.MODEL.HEATMAP_SIZE)
+        self.sigma = cfg.MODEL.SIGMA
+        self.use_different_joints_weight = cfg.LOSS.USE_DIFFERENT_JOINTS_WEIGHT
+        self.joints_weight = 1
 
         self.transform = transform
         self.db = []
@@ -56,6 +61,51 @@ class JointsDataset(Dataset):
 
     def evaluate(self, cfg, preds, output_dir, *args, **kwargs):
         raise NotImplementedError
+
+    def half_body_transform(self, joints, joints_vis):
+        upper_joints = []
+        lower_joints = []
+        for joint_id in range(self.num_joints):
+            if joints_vis[joint_id][0] > 0:
+                if joint_id in self.upper_body_ids:
+                    upper_joints.append(joints[joint_id])
+                else:
+                    lower_joints.append(joints[joint_id])
+
+        if np.random.randn() < 0 and len(upper_joints) > 2:
+            selected_joints = upper_joints
+        else:
+            selected_joints = lower_joints \
+                if len(lower_joints) > 2 else upper_joints
+
+        if len(selected_joints) < 2:
+            return None, None
+
+        selected_joints = np.array(selected_joints, dtype=np.float32)
+        center = selected_joints.mean(axis=0)[:2]
+
+        left_top = np.amin(selected_joints, axis=0)
+        right_bottom = np.amax(selected_joints, axis=0)
+
+        w = right_bottom[0] - left_top[0]
+        h = right_bottom[1] - left_top[1]
+
+        if w > self.aspect_ratio * h:
+            h = w * 1.0 / self.aspect_ratio
+        elif w < self.aspect_ratio * h:
+            w = h * self.aspect_ratio
+
+        scale = np.array(
+            [
+                w * 1.0 / self.pixel_std,
+                h * 1.0 / self.pixel_std
+            ],
+            dtype=np.float32
+        )
+
+        scale = scale * 1.5
+
+        return center, scale
 
     def __len__(self,):
         return len(self.db)
@@ -70,14 +120,21 @@ class JointsDataset(Dataset):
         if self.data_format == 'zip':
             from utils import zipreader
             data_numpy = zipreader.imread(
-                image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+                image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION
+            )
         else:
             data_numpy = cv2.imread(
-                image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+                image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION
+            )
 
         if data_numpy is None:
             logger.error('=> fail to read {}'.format(image_file))
             raise ValueError('Fail to read {}'.format(image_file))
+
+        if self.color_rgb:
+            data_numpy = cv2.cvtColor(data_numpy, cv2.COLOR_BGR2RGB)
+
+
 
         joints = db_rec['joints_3d']
         joints_vis = db_rec['joints_3d_vis']
@@ -88,11 +145,20 @@ class JointsDataset(Dataset):
         r = 0
 
         if self.is_train:
+            if (np.sum(joints_vis[:, 0]) > self.num_joints_half_body
+                and np.random.rand() < self.prob_half_body):
+                c_half_body, s_half_body = self.half_body_transform(
+                    joints, joints_vis
+                )
+
+                if c_half_body is not None and s_half_body is not None:
+                    c, s = c_half_body, s_half_body
+
             sf = self.scale_factor
             rf = self.rotation_factor
-            s = s * np.clip(np.random.randn()*sf + 1, 1 - sf, 1 + sf)
+            s = s * np.clip(np.random.randn()*sf + 1, 1 - sf, 1 + sf)  # random scale([0.65, 1.35])
             r = np.clip(np.random.randn()*rf, -rf*2, rf*2) \
-                if random.random() <= 0.6 else 0
+                if random.random() <= 0.6 else 0  # random rotation([-45°, 45°])
 
             if self.flip and random.random() <= 0.5:
                 data_numpy = data_numpy[:, ::-1, :]
@@ -218,5 +284,8 @@ class JointsDataset(Dataset):
                 if v > 0.5:
                     target[joint_id][img_y[0]:img_y[1], img_x[0]:img_x[1]] = \
                         g[g_y[0]:g_y[1], g_x[0]:g_x[1]]
+
+        if self.use_different_joints_weight:
+            target_weight = np.multiply(target_weight, self.joints_weight)
 
         return target, target_weight

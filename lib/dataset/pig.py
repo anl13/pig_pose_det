@@ -1,8 +1,3 @@
-# ------------------------------------------------------------------------------
-# Copyright (c) Microsoft
-# Licensed under the MIT License.
-# Written by Bin Xiao (Bin.Xiao@microsoft.com)
-# ------------------------------------------------------------------------------
 
 from __future__ import absolute_import
 from __future__ import division
@@ -26,30 +21,28 @@ from nms.nms import soft_oks_nms
 logger = logging.getLogger(__name__)
 
 
-class COCODataset(JointsDataset):
+class PIGDataset(JointsDataset):
     '''
     "keypoints": {
-        0: "nose",
-        1: "left_eye",
-        2: "right_eye",
-        3: "left_ear",
-        4: "right_ear",
+        0: "left_ear",
+        1: "right_ear",
+        2: "nose",
+        3: "right_shoulder",
+        4: "right_front_paw",
         5: "left_shoulder",
-        6: "right_shoulder",
-        7: "left_elbow",
-        8: "right_elbow",
-        9: "left_wrist",
-        10: "right_wrist",
-        11: "left_hip",
-        12: "right_hip",
-        13: "left_knee",
-        14: "right_knee",
-        15: "left_ankle",
-        16: "right_ankle"
+        6: "left_front_paw",
+        7: "right_hip",
+        8: "right_knee",
+        9: "right_back_paw",
+        10: "left_hip",
+        11: "left_knee",
+        12: "left_back_paw",
+        13: "root_of_tail",
+        14: "center"
     },
 	"skeleton": [
-        [16,14],[14,12],[17,15],[15,13],[12,13],[6,12],[7,13], [6,7],[6,8],
-        [7,9],[8,10],[9,11],[2,3],[1,2],[1,3],[2,4],[3,5],[4,6],[5,7]]
+        [[0, 2], [1, 2], [2, 14], [5, 6], [5, 14], [3, 4], [3, 14],
+        [13, 14], [9, 8], [8, 7], [7, 13], [12, 11], [11, 10], [10, 13]]
     '''
     def __init__(self, cfg, root, image_set, is_train, transform=None):
         super().__init__(cfg, root, image_set, is_train, transform)
@@ -65,6 +58,7 @@ class COCODataset(JointsDataset):
         self.aspect_ratio = self.image_width * 1.0 / self.image_height
         self.pixel_std = 200
 
+        logger.info('=> annotation_path:{}'.format(self._get_ann_file_keypoint()))
         self.coco = COCO(self._get_ann_file_keypoint())
 
         # deal with class names
@@ -87,20 +81,31 @@ class COCODataset(JointsDataset):
         self.num_images = len(self.image_set_index)
         logger.info('=> num_images: {}'.format(self.num_images))
 
-        self.num_joints = 17
-        self.flip_pairs = [[1, 2], [3, 4], [5, 6], [7, 8],
-                           [9, 10], [11, 12], [13, 14], [15, 16]]
+        self.num_joints = 15
+        # add by wst 2019-11-10
+        self.sigmas=np.asarray([0.03807887, 0.11313708, 0.1142366 , 0.02783882, 0.09848858,0.03605551, 0.0887412 , 0.04153312, 0.06062178, 0.04358899,0.04582576, 0.07516648, 0.03605551, 0.09394147, 0.07399324])
+        self.flip_pairs = [[0, 1], [3, 5], [4, 6], [7, 10],
+                           [8, 11], [9, 12]]
         self.parent_ids = None
-        self.upper_body_ids = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-        self.lower_body_ids = (11, 12, 13, 14, 15, 16)
+#        self.upper_body_ids = (0, 1, 2, 3, 4, 5, 6)
+#        self.lower_body_ids = (7, 8, 9, 10, 11, 12, 13, 14)
+        self.upper_body_ids = (0, 1, 2, 13, 14)
+        self.lower_body_ids = (3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
 
+        # self.joints_weight = np.array(
+        #     [
+        #         1.2, 1., 1., 1.2, 1., 1.2, 1.,
+        #         2.0, 1.5, 1.2, 1.2, 1.1, 1.1, 1., 1.1
+        #     ],
+        #     dtype=np.float32
+        # ).reshape((self.num_joints, 1))                   # data: 0716
         self.joints_weight = np.array(
             [
-                1., 1., 1., 1., 1., 1., 1., 1.2, 1.2,
-                1.5, 1.5, 1., 1., 1.2, 1.2, 1.5, 1.5
+                1.2, 1., 1., 1.3, 1., 1.2, 1.,
+                2.0, 1.3, 1.2, 1.4, 1.2, 1.2, 1., 1.
             ],
             dtype=np.float32
-        ).reshape((self.num_joints, 1))
+        ).reshape((self.num_joints, 1))                     # data: 0717
 
         self.db = self._get_db()
 
@@ -110,14 +115,9 @@ class COCODataset(JointsDataset):
         logger.info('=> load {} samples'.format(len(self.db)))
 
     def _get_ann_file_keypoint(self):
-        """ self.root / annotations / person_keypoints_train2017.json """
-        prefix = 'person_keypoints' \
-            if 'test' not in self.image_set else 'image_info'
-        return os.path.join(
-            self.root,
-            'annotations',
-            prefix + '_' + self.image_set + '.json'
-        )
+        """ self.root / annotations / train_pig_cocostyle.json """
+        return os.path.join(self.root, 'annotations',
+                            self.image_set + '_pig_cocostyle.json')
 
     def _load_image_set_index(self):
         """ image id: int """
@@ -176,10 +176,9 @@ class COCODataset(JointsDataset):
             cls = self._coco_ind_to_class_ind[obj['category_id']]
             if cls != 1:
                 continue
-
             # ignore objs without keypoints annotation
             if max(obj['keypoints']) == 0:
-                continue
+               continue
 
             joints_3d = np.zeros((self.num_joints, 3), dtype=np.float)
             joints_3d_vis = np.zeros((self.num_joints, 3), dtype=np.float)
@@ -224,22 +223,15 @@ class COCODataset(JointsDataset):
             [w * 1.0 / self.pixel_std, h * 1.0 / self.pixel_std],
             dtype=np.float32)
         if center[0] != -1:
-            scale = scale * 1.25
+            scale = scale * 1.25       # What does 1.25 mean?
 
         return center, scale
 
     def image_path_from_index(self, index):
-        """ example: images / train2017 / 000000119993.jpg """
-        file_name = '%012d.jpg' % index
-        if '2014' in self.image_set:
-            file_name = 'COCO_%s_' % self.image_set + file_name
-
-        prefix = 'test2017' if 'test' in self.image_set else self.image_set
-
-        data_name = prefix + '.zip@' if self.data_format == 'zip' else prefix
-
+        im_ann = self.coco.loadImgs(index)[0] 
         image_path = os.path.join(
-            self.root, 'images', data_name, file_name)
+            self.root, 'images', im_ann['file_name']
+        )
 
         return image_path
 
@@ -247,7 +239,8 @@ class COCODataset(JointsDataset):
         all_boxes = None
         with open(self.bbox_file, 'r') as f:
             all_boxes = json.load(f)
-
+        if type(all_boxes)!=list:
+            all_boxes = all_boxes['annotations']
         if not all_boxes:
             logger.error('=> Load %s fail!' % self.bbox_file)
             return None
@@ -256,13 +249,20 @@ class COCODataset(JointsDataset):
 
         kpt_db = []
         num_boxes = 0
+        
         for n_img in range(0, len(all_boxes)):
+            logger.info(all_boxes[n_img])
             det_res = all_boxes[n_img]
             if det_res['category_id'] != 1:
                 continue
             img_name = self.image_path_from_index(det_res['image_id'])
+
             box = det_res['bbox']
             score = det_res['score']
+            if 'score' not in det_res.keys():
+                score = 1
+            else:
+                score = det_res['score']
 
             if score < self.image_thre:
                 continue
@@ -311,8 +311,9 @@ class COCODataset(JointsDataset):
                 'scale': all_boxes[idx][2:4],
                 'area': all_boxes[idx][4],
                 'score': all_boxes[idx][5],
-                'image': int(img_path[idx][-16:-4])
+                'image': int(img_path[idx][-8:-4])
             })
+            
         # image x person x (keypoints)
         kpts = defaultdict(list)
         for kpt in _kpts:
@@ -338,18 +339,28 @@ class COCODataset(JointsDataset):
                     kpt_score = kpt_score / valid_num
                 # rescoring
                 n_p['score'] = kpt_score * box_score
-
+            """
             if self.soft_nms:
                 keep = soft_oks_nms(
                     [img_kpts[i] for i in range(len(img_kpts))],
                     oks_thre
                 )
             else:
+                for i in range(len(img_kpts)):
+                    logger.info('=> Debug: {}'.format(img_kpts[i]))
                 keep = oks_nms(
                     [img_kpts[i] for i in range(len(img_kpts))],
                     oks_thre
                 )
-
+            """
+            if self.soft_nms:
+               keep = soft_oks_nms([img_kpts[i] for i in range(len(img_kpts))],oks_thre, sigmas=self.sigmas)
+                # keep = soft_oks_nms([img_kpts[i] for i in range(len(img_kpts))],oks_thre)
+            else:
+                keep = oks_nms(
+                    [img_kpts[i] for i in range(len(img_kpts))],oks_thre, sigmas=self.sigmas)
+                    # [img_kpts[i] for i in range(len(img_kpts))],oks_thre)
+                                        
             if len(keep) == 0:
                 oks_nmsed_kpts.append(img_kpts)
             else:
@@ -358,6 +369,11 @@ class COCODataset(JointsDataset):
         self._write_coco_keypoint_results(
             oks_nmsed_kpts, res_file)
         if 'test' not in self.image_set:
+            info_str = self._do_python_keypoint_eval(
+                res_file, res_folder)
+            name_value = OrderedDict(info_str)
+            return name_value, name_value['AP']
+        elif 'val' not in self.image_set:
             info_str = self._do_python_keypoint_eval(
                 res_file, res_folder)
             name_value = OrderedDict(info_str)
@@ -430,7 +446,7 @@ class COCODataset(JointsDataset):
 
     def _do_python_keypoint_eval(self, res_file, res_folder):
         coco_dt = self.coco.loadRes(res_file)
-        coco_eval = COCOeval(self.coco, coco_dt, 'keypoints')
+        coco_eval = COCOeval(self.coco, coco_dt, 'keypoints', kptType='atrw')
         coco_eval.params.useSegm = None
         coco_eval.evaluate()
         coco_eval.accumulate()

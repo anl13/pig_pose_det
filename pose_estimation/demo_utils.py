@@ -16,7 +16,10 @@ def load_state_dict_module(model, state_file):
     D = torch.load(state_file) 
     newD = collections.OrderedDict() 
     for k,v in D.items():
-        newk = k[7:]
+        if 'module' in k: 
+            newk = k[7:]
+        else: 
+            newk = k 
         newD.update({newk:v})
     model.load_state_dict(newD) 
 
@@ -47,8 +50,7 @@ def box_xyxy2cs(box_xyxy):
     return xywh2cs(x1,y1,x2-x1,y2-y1)
 
 # [input] img: img loaded by cv2.imread(filename) 
-def preprocess(img, boxes, mytransforms=None):
-    image_size = [288, 384]
+def preprocess(img, boxes, mytransforms=None, image_size=[384, 288]):
     data_numpy = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     all_crops = torch.zeros((len(boxes), 3, image_size[1], image_size[0])) 
     all_c = [] 
@@ -74,35 +76,6 @@ def preprocess(img, boxes, mytransforms=None):
 
     return all_crops, all_c, all_s 
 
-'''
-"keypoints": {
-    0: "nose",
-    1: left eye 
-    2: left ear
-    3: left shoulder
-    4: left elbow 
-    5: left wrist
-    6: left hip 
-    7: left knee
-    8: left foot
-    9: tail root
-    10: right eye 
-    11: right ear
-    12: right shoulder
-    13: right elbow
-    14: right wrist
-    15: right hip 
-    16: right knee
-    17: right foot
-    18: center
-    19: ear middle 
-},
-"skeleton": [
-    [0,1], [1,2], [0,10], [10,11], [0,19], [19,18], [18,9], 
-    [19,12], [19, 3], [9, 15], [9,6], [12, 13], [13,14], 
-    [15,16], [16,17], [3,4], [4,5], [6,7], [7,8]
-'''
-
 COLORS = [
     [255,0,0],
     [0,255,0],
@@ -119,12 +92,16 @@ COLORS = [
 ]
 
 # img: [H,W,C]
-# preds: [N, 20, 3]
-SKEL = [    [0,1], [1,2], [0,10], [10,11], [0,19], [19,18], [18,9], 
-    [19,12], [19, 3], [9, 15], [9,6], [12, 13], [13,14], 
-    [15,16], [16,17], [3,4], [4,5], [6,7], [7,8] ]
+# preds: [N, 15, 3]
+SKEL = {
+    "pig": [[0, 2], [1, 2], [2, 14], [5, 6], [5, 14], [3, 4], [3, 14],
+    [13, 14], [9, 8], [8, 7], [7, 13], [12, 11], [11, 10], [10, 13]], 
+    "pig20" : [[0,1], [1,2], [0,10], [10,11], [0,19], [19,18], [18,9], 
+        [19,12], [19, 3], [9, 15], [9,6], [12, 13], [13,14], 
+        [15,16], [16,17], [3,4], [4,5], [6,7], [7,8] ]
+}
 
-def draw_keypoints(img, preds, conf_thres=0.8):
+def draw_keypoints(img, preds, conf_thres=0.8, dataType="pig"):
     out = img.copy() 
     for idx, pred in enumerate(preds):
         color = COLORS[idx]
@@ -135,7 +112,7 @@ def draw_keypoints(img, preds, conf_thres=0.8):
                 continue 
             size = int(10 * c) + 1 
             cv2.circle(out, (int(x), int(y)), size, color, -1) 
-        for skel in SKEL: 
+        for skel in SKEL[dataType]: 
             p1 = pred[skel[0]]
             p2 = pred[skel[1]]
             if p1[2] < conf_thres or p2[2] < conf_thres: 

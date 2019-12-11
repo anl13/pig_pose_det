@@ -13,7 +13,6 @@ import logging
 
 import torch
 import torch.nn as nn
-from collections import OrderedDict
 
 
 BN_MOMENTUM = 0.1
@@ -22,8 +21,10 @@ logger = logging.getLogger(__name__)
 
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=1, bias=False)
+    return nn.Conv2d(
+        in_planes, out_planes, kernel_size=3, stride=stride,
+        padding=1, bias=False
+    )
 
 
 class BasicBlock(nn.Module):
@@ -66,48 +67,6 @@ class Bottleneck(nn.Module):
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes, momentum=BN_MOMENTUM)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride,
-                               padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes, momentum=BN_MOMENTUM)
-        self.conv3 = nn.Conv2d(planes, planes * self.expansion, kernel_size=1,
-                               bias=False)
-        self.bn3 = nn.BatchNorm2d(planes * self.expansion,
-                                  momentum=BN_MOMENTUM)
-        self.relu = nn.ReLU(inplace=True)
-        self.downsample = downsample
-        self.stride = stride
-
-    def forward(self, x):
-        residual = x
-
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out = self.relu(out)
-
-        out = self.conv3(out)
-        out = self.bn3(out)
-
-        if self.downsample is not None:
-            residual = self.downsample(x)
-
-        out += residual
-        out = self.relu(out)
-
-        return out
-
-
-class Bottleneck_CAFFE(nn.Module):
-    expansion = 4
-
-    def __init__(self, inplanes, planes, stride=1, downsample=None):
-        super(Bottleneck_CAFFE, self).__init__()
-        # add stride to conv1x1
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, stride=stride, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes, momentum=BN_MOMENTUM)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1,
                                padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes, momentum=BN_MOMENTUM)
         self.conv3 = nn.Conv2d(planes, planes * self.expansion, kernel_size=1,
@@ -271,48 +230,38 @@ class PoseResNet(nn.Module):
                     nn.init.normal_(m.weight, std=0.001)
                     nn.init.constant_(m.bias, 0)
 
-            # pretrained_state_dict = torch.load(pretrained)
+            pretrained_state_dict = torch.load(pretrained)
             logger.info('=> loading pretrained model {}'.format(pretrained))
-            # self.load_state_dict(pretrained_state_dict, strict=False)
-            checkpoint = torch.load(pretrained)
-            if isinstance(checkpoint, OrderedDict):
-                state_dict = checkpoint
-            elif isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
-                state_dict_old = checkpoint['state_dict']
-                state_dict = OrderedDict()
-                # delete 'module.' because it is saved from DataParallel module
-                for key in state_dict_old.keys():
-                    if key.startswith('module.'):
-                        # state_dict[key[7:]] = state_dict[key]
-                        # state_dict.pop(key)
-                        state_dict[key[7:]] = state_dict_old[key]
-                    else:
-                        state_dict[key] = state_dict_old[key]
-            else:
-                raise RuntimeError(
-                    'No state_dict found in checkpoint file {}'.format(pretrained))
-            self.load_state_dict(state_dict, strict=False)
+            self.load_state_dict(pretrained_state_dict, strict=False)
         else:
-            logger.error('=> imagenet pretrained model dose not exist')
-            logger.error('=> please download it first')
-            raise ValueError('imagenet pretrained model does not exist')
+            logger.info('=> init weights from normal distribution')
+            for m in self.modules():
+                if isinstance(m, nn.Conv2d):
+                    # nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                    nn.init.normal_(m.weight, std=0.001)
+                    # nn.init.constant_(m.bias, 0)
+                elif isinstance(m, nn.BatchNorm2d):
+                    nn.init.constant_(m.weight, 1)
+                    nn.init.constant_(m.bias, 0)
+                elif isinstance(m, nn.ConvTranspose2d):
+                    nn.init.normal_(m.weight, std=0.001)
+                    if self.deconv_with_bias:
+                        nn.init.constant_(m.bias, 0)
 
 
-resnet_spec = {18: (BasicBlock, [2, 2, 2, 2]),
-               34: (BasicBlock, [3, 4, 6, 3]),
-               50: (Bottleneck, [3, 4, 6, 3]),
-               101: (Bottleneck, [3, 4, 23, 3]),
-               152: (Bottleneck, [3, 8, 36, 3])}
+resnet_spec = {
+    18: (BasicBlock, [2, 2, 2, 2]),
+    34: (BasicBlock, [3, 4, 6, 3]),
+    50: (Bottleneck, [3, 4, 6, 3]),
+    101: (Bottleneck, [3, 4, 23, 3]),
+    152: (Bottleneck, [3, 8, 36, 3])
+}
 
 
 def get_pose_net(cfg, is_train, **kwargs):
     num_layers = cfg.MODEL.EXTRA.NUM_LAYERS
-    style = cfg.MODEL.STYLE
 
     block_class, layers = resnet_spec[num_layers]
-
-    if style == 'caffe':
-        block_class = Bottleneck_CAFFE
 
     model = PoseResNet(block_class, layers, cfg, **kwargs)
 

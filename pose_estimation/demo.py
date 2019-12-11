@@ -22,8 +22,8 @@ import torch.utils.data.distributed
 import torchvision.transforms as transforms
 
 import _init_paths
-from core.config import config
-from core.config import update_config
+from config import cfg
+from config import update_config
 from core.loss import JointsMSELoss
 from core.function import validate
 from utils.utils import create_logger
@@ -37,7 +37,6 @@ import json
 from tqdm import tqdm 
 
 import matplotlib.pyplot as plt 
-import cv2 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train keypoints network')
@@ -45,83 +44,48 @@ def parse_args():
     parser.add_argument('--cfg',
                         help='experiment configure file name',
                         required=True,
+                        default="experiments/pig/w48_384x288-tiger.yaml",
                         type=str)
+    parser.add_argument('opts',
+                        help="Modify config options using the command-line",
+                        default=None,
+                        nargs=argparse.REMAINDER)
 
-    args, rest = parser.parse_known_args()
-    # update config
-    update_config(args.cfg)
-
-    # training
-    parser.add_argument('--frequent',
-                        help='frequency of logging',
-                        default=config.PRINT_FREQ,
-                        type=int)
-    parser.add_argument('--gpus',
-                        help='gpus',
-                        type=str)
-    parser.add_argument('--workers',
-                        help='num of dataloader workers',
-                        type=int)
-    parser.add_argument('--model-file',
-                        help='model state file',
-                        type=str)
-    parser.add_argument('--use-detect-bbox',
-                        help='use detect bbox',
-                        action='store_true')
-    parser.add_argument('--flip-test',
-                        help='use flip test',
-                        action='store_true')
-    parser.add_argument('--post-process',
-                        help='use post process',
-                        action='store_true')
-    parser.add_argument('--shift-heatmap',
-                        help='shift heatmap',
-                        action='store_true')
-    parser.add_argument('--coco-bbox-file',
-                        help='coco detection bbox file',
-                        type=str)
-
+    parser.add_argument('--modelDir',
+                        help='model directory',
+                        type=str,
+                        default='')
+    parser.add_argument('--logDir',
+                        help='log directory',
+                        type=str,
+                        default='')
+    parser.add_argument('--dataDir',
+                        help='data directory',
+                        type=str,
+                        default='')
+    parser.add_argument('--prevModelDir',
+                        help='prev Model directory',
+                        type=str,
+                        default='')
     args = parser.parse_args()
-
     return args
 
 
-def reset_config(config, args):
-    if args.gpus:
-        config.GPUS = args.gpus
-    if args.workers:
-        config.WORKERS = args.workers
-    if args.use_detect_bbox:
-        config.TEST.USE_GT_BBOX = not args.use_detect_bbox
-    if args.flip_test:
-        config.TEST.FLIP_TEST = args.flip_test
-    if args.post_process:
-        config.TEST.POST_PROCESS = args.post_process
-    if args.shift_heatmap:
-        config.TEST.SHIFT_HEATMAP = args.shift_heatmap
-    if args.model_file:
-        config.TEST.MODEL_FILE = args.model_file
-    if args.coco_bbox_file:
-        config.TEST.COCO_BBOX_FILE = args.coco_bbox_file
-
 def main(seq, is_vis=False):
     args = parse_args()
-    reset_config(config, args)
-
+    update_config(cfg, args)
     # cudnn related setting
-    cudnn.benchmark = config.CUDNN.BENCHMARK
-    torch.backends.cudnn.deterministic = config.CUDNN.DETERMINISTIC
-    torch.backends.cudnn.enabled = config.CUDNN.ENABLED
+    cudnn.benchmark = cfg.CUDNN.BENCHMARK
+    torch.backends.cudnn.deterministic = cfg.CUDNN.DETERMINISTIC
+    torch.backends.cudnn.enabled = cfg.CUDNN.ENABLED
 
-    model = eval('models.'+config.MODEL.NAME+'.get_pose_net')(
-        config, is_train=False
+    model = eval('models.'+cfg.MODEL.NAME+'.get_pose_net')(
+        cfg, is_train=False
     )
 
-    load_state_dict_module(model, config.TEST.MODEL_FILE) 
+    load_state_dict_module(model, cfg.TEST.MODEL_FILE)
 
-    gpus = [int(i) for i in config.GPUS.split(',')]
-    model = torch.nn.DataParallel(model, device_ids=gpus).cuda()
-
+    model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
     model.eval() 
 
     # Data loading code
@@ -132,45 +96,44 @@ def main(seq, is_vis=False):
             transforms.ToTensor(),
             normalize,
         ])
-    
     for frameid in tqdm(range(0,10000)):
         
-        output_pkl  = "/home/al17/animal/pig-data/sequences/{}/keypoints_pig20/{:06d}.pkl".format(seq, frameid)
-        output_json = "/home/al17/animal/pig-data/sequences/{}/keypoints_pig20/{:06d}.json".format(seq, frameid)
+        output_pkl  = "/home/al17/animal/pig-data/sequences/{}/keypoints_hrnet/{:06d}.pkl".format(seq, frameid)
+        output_json = "/home/al17/animal/pig-data/sequences/{}/keypoints_hrnet/{:06d}.json".format(seq, frameid)
 
         camids = [0,1,2,5,6,7,8,9,10,11]
-        boxfile = "/home/al17/animal/pig-data/sequences/{}/boxes/boxes_{:06d}.pkl".format(seq, frameid)
+        boxfile = "/home/al17/animal/pig-data/sequences/{}/boxes/boxes_{:06d}.pkl".format(seq,frameid)
         keypoints_dict = {} 
         with open(boxfile, 'rb') as f: 
             boxes_allviews = pickle.load(f, encoding='latin1')
         for camid in camids: 
-            imgfile = "/home/al17/animal/pig-data/sequences/{}/images/cam{}/{:06d}.jpg".format(seq, camid, frameid)
+            imgfile = "/home/al17/animal/pig-data/sequences/{}/images/cam{}/{:06d}.jpg".format(seq,camid, frameid)
             rawimg = cv2.imread(imgfile) 
             boxes = boxes_allviews[str(camid)]
             if len(boxes) == 0:
                 keypoints_dict.update({str(camid):[]})
                 continue
-            net_input, all_c, all_s = preprocess(rawimg, boxes, mytransforms=mytransforms)
-            net_out = model(net_input) # heatmaps [N,20,288,384]
+            net_input, all_c, all_s = preprocess(rawimg, boxes, mytransforms=mytransforms, image_size=cfg.MODEL.IMAGE_SIZE)
+            net_out = model(net_input) # heatmaps [N,15,288,384]
             num_samples = len(boxes) 
-            all_preds = np.zeros((num_samples, config.MODEL.NUM_JOINTS, 3), dtype=np.float32) 
+            all_preds = np.zeros((num_samples, cfg.MODEL.NUM_JOINTS, 3), dtype=np.float32) 
             all_boxes = np.zeros((num_samples, 6))
 
             preds, maxvals = get_final_preds(
-                config, net_out.detach().clone().cpu().numpy(), all_c, all_s)
+                cfg, net_out.detach().clone().cpu().numpy(), all_c, all_s)
             all_preds[0: num_samples, :, 0:2] = preds[:, :, 0:2]
             all_preds[0: num_samples, :, 2:3] = maxvals
             all_boxes[0: num_samples, 0:2] = all_c[:, 0:2]
             all_boxes[0: num_samples, 2:4] = all_s[:, 0:2]
             all_boxes[0: num_samples, 4] = np.prod(all_s*200, 1)
             all_boxes[0: num_samples, 5] = 1
-            keypoints_dict.update({str(camid):all_preds.reshape(num_samples, 20*3).tolist()})
+            keypoints_dict.update({str(camid):all_preds.reshape(num_samples, cfg.MODEL.NUM_JOINTS*3).tolist()})
 
             if is_vis: 
-                vis = draw_keypoints(rawimg, all_preds) 
+                vis = draw_keypoints(rawimg, all_preds, conf_thres=0.2, dataType=cfg.DATASET.DATASET) 
                 vis_rgb = vis[:,:,(2,1,0)]
-                cv2.namedWindow("image", cv2.WINDOW_NORMAL)
-                cv2.imshow("image", vis) 
+                cv2.namedWindow("hrnet", cv2.WINDOW_NORMAL)
+                cv2.imshow("hrnet", vis) 
                 key = cv2.waitKey() 
                 if key == 27: 
                     exit() 

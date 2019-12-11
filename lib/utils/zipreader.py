@@ -59,7 +59,7 @@ def xmlread(filename):
     if not os.path.isfile(path_zip):
         print("zip file '%s' is not found"%(path_zip))
         assert 0
-    for i in range(len(_xml_path_zip)):
+    for i in xrange(len(_xml_path_zip)):
         if _xml_path_zip[i] == path_zip:
             data = _xml_zfile[i].open(path_xml)
             return ET.fromstring(data.read())

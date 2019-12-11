@@ -7,20 +7,19 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-
-import logging
+ 
 import time
+import logging
 import os
 
 import numpy as np
 import torch
 
-from core.config import get_model_name
 from core.evaluate import accuracy
 from core.inference import get_final_preds
 from utils.transforms import flip_back
 from utils.vis import save_debug_images
-
+from termcolor import cprint 
 
 logger = logging.getLogger(__name__)
 
@@ -41,11 +40,20 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
         data_time.update(time.time() - end)
 
         # compute output
-        output = model(input)
+        outputs = model(input)
+
         target = target.cuda(non_blocking=True)
         target_weight = target_weight.cuda(non_blocking=True)
 
-        loss = criterion(output, target, target_weight)
+        if isinstance(outputs, list):
+            loss = criterion(outputs[0], target, target_weight)
+            for output in outputs[1:]:
+                loss += criterion(output, target, target_weight)
+        else:
+            output = outputs
+            loss = criterion(output, target, target_weight)
+
+        # loss = criterion(output, target, target_weight)
 
         # compute gradient and do update step
         optimizer.zero_grad()
@@ -88,6 +96,7 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
 
 def validate(config, val_loader, val_dataset, model, criterion, output_dir,
              tb_log_dir, writer_dict=None):
+    print("validate func...")
     batch_time = AverageMeter()
     losses = AverageMeter()
     acc = AverageMeter()
@@ -96,8 +105,10 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
     model.eval()
 
     num_samples = len(val_dataset)
-    all_preds = np.zeros((num_samples, config.MODEL.NUM_JOINTS, 3),
-                         dtype=np.float32)
+    all_preds = np.zeros(
+        (num_samples, config.MODEL.NUM_JOINTS, 3),
+        dtype=np.float32
+    )
     all_boxes = np.zeros((num_samples, 6))
     image_path = []
     filenames = []
@@ -107,28 +118,37 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
         end = time.time()
         for i, (input, target, target_weight, meta) in enumerate(val_loader):
             # compute output
-            output = model(input)
+            outputs = model(input)
+            if isinstance(outputs, list):
+                output = outputs[-1]
+            else:
+                output = outputs
             if config.TEST.FLIP_TEST:
                 # this part is ugly, because pytorch has not supported negative index
                 # input_flipped = model(input[:, :, :, ::-1])
                 input_flipped = np.flip(input.cpu().numpy(), 3).copy()
                 input_flipped = torch.from_numpy(input_flipped).cuda()
-                output_flipped = model(input_flipped)
+                outputs_flipped = model(input_flipped)
+
+                if isinstance(outputs_flipped, list):
+                    output_flipped = outputs_flipped[-1]
+                else:
+                    output_flipped = outputs_flipped
+
                 output_flipped = flip_back(output_flipped.cpu().numpy(),
                                            val_dataset.flip_pairs)
                 output_flipped = torch.from_numpy(output_flipped.copy()).cuda()
+
 
                 # feature is not aligned, shift flipped heatmap for higher accuracy
                 if config.TEST.SHIFT_HEATMAP:
                     output_flipped[:, :, :, 1:] = \
                         output_flipped.clone()[:, :, :, 0:-1]
-                    # output_flipped[:, :, :, 0] = 0
 
                 output = (output + output_flipped) * 0.5
 
             target = target.cuda(non_blocking=True)
             target_weight = target_weight.cuda(non_blocking=True)
-
             loss = criterion(output, target, target_weight)
 
             num_images = input.size(0)
@@ -146,7 +166,6 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
             c = meta['center'].numpy()
             s = meta['scale'].numpy()
             score = meta['score'].numpy()
-
             preds, maxvals = get_final_preds(
                 config, output.clone().cpu().numpy(), c, s)
 
@@ -158,9 +177,6 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
             all_boxes[idx:idx + num_images, 4] = np.prod(s*200, 1)
             all_boxes[idx:idx + num_images, 5] = score
             image_path.extend(meta['image'])
-            if config.DATASET.DATASET == 'posetrack':
-                filenames.extend(meta['filename'])
-                imgnums.extend(meta['imgnum'].numpy())
 
             idx += num_images
 
@@ -173,31 +189,48 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
                           loss=losses, acc=acc)
                 logger.info(msg)
 
-                prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
-                save_debug_images(config, input, meta, target, pred*4, output,
-                                  prefix)
+                prefix = '{}_{}'.format(
+                    os.path.join(output_dir, 'val'), i
+                )
+                # save_debug_images(config, input, meta, target, pred*4, output, prefix)
 
         name_values, perf_indicator = val_dataset.evaluate(
             config, all_preds, output_dir, all_boxes, image_path,
-            filenames, imgnums)
-
-        _, full_arch_name = get_model_name(config)
+            filenames, imgnums
+        )
+        model_name = config.MODEL.NAME
         if isinstance(name_values, list):
             for name_value in name_values:
-                _print_name_value(name_value, full_arch_name)
+                _print_name_value(name_value, model_name)
         else:
-            _print_name_value(name_values, full_arch_name)
+            _print_name_value(name_values, model_name)
 
         if writer_dict:
             writer = writer_dict['writer']
             global_steps = writer_dict['valid_global_steps']
-            writer.add_scalar('valid_loss', losses.avg, global_steps)
-            writer.add_scalar('valid_acc', acc.avg, global_steps)
+            writer.add_scalar(
+                'valid_loss',
+                losses.avg,
+                global_steps
+            )
+            writer.add_scalar(
+                'valid_acc',
+                acc.avg,
+                global_steps
+            )
             if isinstance(name_values, list):
                 for name_value in name_values:
-                    writer.add_scalars('valid', dict(name_value), global_steps)
+                    writer.add_scalars(
+                        'valid',
+                        dict(name_value),
+                        global_steps
+                    )
             else:
-                writer.add_scalars('valid', dict(name_values), global_steps)
+                writer.add_scalars(
+                    'valid',
+                    dict(name_values),
+                    global_steps
+                )
             writer_dict['valid_global_steps'] = global_steps + 1
 
     return perf_indicator
@@ -214,6 +247,9 @@ def _print_name_value(name_value, full_arch_name):
         ' |'
     )
     logger.info('|---' * (num_values+1) + '|')
+
+    if len(full_arch_name) > 15:
+        full_arch_name = full_arch_name[:8] + '...'
     logger.info(
         '| ' + full_arch_name + ' ' +
         ' '.join(['| {:.3f}'.format(value) for value in values]) +

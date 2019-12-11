@@ -1,5 +1,6 @@
 # --------------------------------------------------------
-# Copyright (c) Microsoft
+# Pose.gluon
+# Copyright (c) 2018-present Microsoft
 # Licensed under The MIT License [see LICENSE for details]
 # Modified from py-faster-rcnn (https://github.com/rbgirshick/py-faster-rcnn)
 # --------------------------------------------------------

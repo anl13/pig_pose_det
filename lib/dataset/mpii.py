@@ -8,10 +8,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from collections import OrderedDict
 import logging
 import os
 import json_tricks as json
+from collections import OrderedDict
 
 import numpy as np
 from scipy.io import loadmat, savemat
@@ -30,6 +30,9 @@ class MPIIDataset(JointsDataset):
         self.flip_pairs = [[0, 5], [1, 4], [2, 3], [10, 15], [11, 14], [12, 13]]
         self.parent_ids = [1, 2, 6, 6, 3, 4, 6, 6, 7, 8, 11, 12, 7, 7, 13, 14]
 
+        self.upper_body_ids = (7, 8, 9, 10, 11, 12, 13, 14, 15)
+        self.lower_body_ids = (0, 1, 2, 3, 4, 5, 6)
+
         self.db = self._get_db()
 
         if is_train and cfg.DATASET.SELECT_DATA:
@@ -39,9 +42,9 @@ class MPIIDataset(JointsDataset):
 
     def _get_db(self):
         # create train/val split
-        file_name = os.path.join(self.root,
-                                 'annot',
-                                 self.image_set+'.json')
+        file_name = os.path.join(
+            self.root, 'annot', self.image_set+'.json'
+        )
         with open(file_name) as anno_file:
             anno = json.load(anno_file)
 
@@ -76,15 +79,17 @@ class MPIIDataset(JointsDataset):
                 joints_3d_vis[:, 1] = joints_vis[:]
 
             image_dir = 'images.zip@' if self.data_format == 'zip' else 'images'
-            gt_db.append({
-                'image': os.path.join(self.root, image_dir, image_name),
-                'center': c,
-                'scale': s,
-                'joints_3d': joints_3d,
-                'joints_3d_vis': joints_3d_vis,
-                'filename': '',
-                'imgnum': 0,
-                })
+            gt_db.append(
+                {
+                    'image': os.path.join(self.root, image_dir, image_name),
+                    'center': c,
+                    'scale': s,
+                    'joints_3d': joints_3d,
+                    'joints_3d_vis': joints_3d_vis,
+                    'filename': '',
+                    'imgnum': 0,
+                }
+            )
 
         return gt_db
 

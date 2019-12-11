@@ -64,11 +64,11 @@ TRAIN:
 TEST:
   BATCH_SIZE: 16
   FLIP_TEST: false
-  MODEL_FILE: ''
+  MODEL_FILE: 'output/pig20/pose_resnet_152/384x288_d256x3_adam_lr1e-3/model_best.pth.tar'
   USE_GT_BBOX: true
 DEBUG:
-  DEBUG: false
-  SAVE_BATCH_IMAGES_GT: false
-  SAVE_BATCH_IMAGES_PRED: false
+  DEBUG: true
+  SAVE_BATCH_IMAGES_GT: true
+  SAVE_BATCH_IMAGES_PRED: true
   SAVE_HEATMAPS_GT: false
   SAVE_HEATMAPS_PRED: false

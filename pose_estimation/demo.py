@@ -1,9 +1,9 @@
 # ------------------------------------------------------------------------------
-# Copyright (c) Microsoft Corporation. All rights reserved.
-# Licensed under the MIT License.
+# pose.pytorch
+# Copyright (c) 2018-present Microsoft
+# Licensed under The Apache-2.0 License [see LICENSE for details]
 # Written by Bin Xiao (Bin.Xiao@microsoft.com)
 # ------------------------------------------------------------------------------
-
 
 from __future__ import absolute_import
 from __future__ import division
@@ -24,14 +24,20 @@ import torchvision.transforms as transforms
 import _init_paths
 from core.config import config
 from core.config import update_config
-from core.config import update_dir
 from core.loss import JointsMSELoss
 from core.function import validate
 from utils.utils import create_logger
+from core.inference import get_final_preds
 
 import dataset
 import models
-from demo_utils import load_state_dict_module 
+from demo_utils import * 
+import pickle 
+import json 
+from tqdm import tqdm 
+
+import matplotlib.pyplot as plt 
+import cv2 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train keypoints network')
@@ -98,16 +104,9 @@ def reset_config(config, args):
     if args.coco_bbox_file:
         config.TEST.COCO_BBOX_FILE = args.coco_bbox_file
 
-
-def main():
+def main(seq, is_vis=False):
     args = parse_args()
     reset_config(config, args)
-
-    logger, final_output_dir, tb_log_dir = create_logger(
-        config, args.cfg, 'valid')
-
-    logger.info(pprint.pformat(args))
-    logger.info(pprint.pformat(config))
 
     # cudnn related setting
     cudnn.benchmark = config.CUDNN.BENCHMARK
@@ -118,49 +117,70 @@ def main():
         config, is_train=False
     )
 
-    # if config.TEST.MODEL_FILE:
-    #     logger.info('=> loading model from {}'.format(config.TEST.MODEL_FILE))
-    #     model.load_state_dict(torch.load(config.TEST.MODEL_FILE))
-    # else:
-    #     model_state_file = os.path.join(final_output_dir,
-    #                                     'final_state.pth.tar')
-    #     logger.info('=> loading model from {}'.format(model_state_file))
-    #     model.load_state_dict(torch.load(model_state_file))
-    load_state_dict_module(model, config.TEST.MODEL_FILE)
+    load_state_dict_module(model, config.TEST.MODEL_FILE) 
 
     gpus = [int(i) for i in config.GPUS.split(',')]
     model = torch.nn.DataParallel(model, device_ids=gpus).cuda()
 
-    # define loss function (criterion) and optimizer
-    criterion = JointsMSELoss(
-        use_target_weight=config.LOSS.USE_TARGET_WEIGHT
-    ).cuda()
+    model.eval() 
 
     # Data loading code
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
-    valid_dataset = eval('dataset.'+config.DATASET.DATASET)(
-        config,
-        config.DATASET.ROOT,
-        config.DATASET.TEST_SET,
-        False,
-        transforms.Compose([
+    normalize = transforms.Normalize(
+        mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+    )
+    mytransforms = transforms.Compose([
             transforms.ToTensor(),
             normalize,
         ])
-    )
-    valid_loader = torch.utils.data.DataLoader(
-        valid_dataset,
-        batch_size=config.TEST.BATCH_SIZE*len(gpus),
-        shuffle=False,
-        num_workers=config.WORKERS,
-        pin_memory=True
-    )
+    
+    for frameid in tqdm(range(0,10000)):
+        
+        output_pkl  = "/home/al17/animal/pig-data/sequences/{}/keypoints_pig20/{:06d}.pkl".format(seq, frameid)
+        output_json = "/home/al17/animal/pig-data/sequences/{}/keypoints_pig20/{:06d}.json".format(seq, frameid)
 
-    # evaluate on validation set
-    validate(config, valid_loader, valid_dataset, model, criterion,
-             final_output_dir, tb_log_dir)
+        camids = [0,1,2,5,6,7,8,9,10,11]
+        boxfile = "/home/al17/animal/pig-data/sequences/{}/boxes/boxes_{:06d}.pkl".format(seq, frameid)
+        keypoints_dict = {} 
+        with open(boxfile, 'rb') as f: 
+            boxes_allviews = pickle.load(f, encoding='latin1')
+        for camid in camids: 
+            imgfile = "/home/al17/animal/pig-data/sequences/{}/images/cam{}/{:06d}.jpg".format(seq, camid, frameid)
+            rawimg = cv2.imread(imgfile) 
+            boxes = boxes_allviews[str(camid)]
+            if len(boxes) == 0:
+                keypoints_dict.update({str(camid):[]})
+                continue
+            net_input, all_c, all_s = preprocess(rawimg, boxes, mytransforms=mytransforms)
+            net_out = model(net_input) # heatmaps [N,20,288,384]
+            num_samples = len(boxes) 
+            all_preds = np.zeros((num_samples, config.MODEL.NUM_JOINTS, 3), dtype=np.float32) 
+            all_boxes = np.zeros((num_samples, 6))
 
+            preds, maxvals = get_final_preds(
+                config, net_out.detach().clone().cpu().numpy(), all_c, all_s)
+            all_preds[0: num_samples, :, 0:2] = preds[:, :, 0:2]
+            all_preds[0: num_samples, :, 2:3] = maxvals
+            all_boxes[0: num_samples, 0:2] = all_c[:, 0:2]
+            all_boxes[0: num_samples, 2:4] = all_s[:, 0:2]
+            all_boxes[0: num_samples, 4] = np.prod(all_s*200, 1)
+            all_boxes[0: num_samples, 5] = 1
+            keypoints_dict.update({str(camid):all_preds.reshape(num_samples, 20*3).tolist()})
+
+            if is_vis: 
+                vis = draw_keypoints(rawimg, all_preds) 
+                vis_rgb = vis[:,:,(2,1,0)]
+                cv2.namedWindow("image", cv2.WINDOW_NORMAL)
+                cv2.imshow("image", vis) 
+                key = cv2.waitKey() 
+                if key == 27: 
+                    exit() 
+        with open(output_pkl, 'wb') as f: 
+            pickle.dump(keypoints_dict, f, protocol=2) 
+        with open(output_json, "w") as f: 
+            json.dump(keypoints_dict, f)
 
 if __name__ == '__main__':
-    main()
+    seq1 = "20190704_morning" 
+    seq2 = "20190704_noon"
+    main(seq1, is_vis=True)
+    # main(seq2) 

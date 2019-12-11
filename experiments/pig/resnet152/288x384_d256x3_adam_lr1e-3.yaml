@@ -64,7 +64,7 @@ TRAIN:
 TEST:
   BATCH_SIZE_PER_GPU: 16
   FLIP_TEST: false
-  MODEL_FILE: 'output/pig20/pose_resnet_152/288x384_d256x3_adam_lr1e-3/model_best.pth.tar'
+  MODEL_FILE: 'output/pig20/pose_resnet_152/288x384_d256x3_adam_lr1e-3/final_state.pth.tar'
   USE_GT_BBOX: true
 DEBUG:
   DEBUG: true

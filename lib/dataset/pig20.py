@@ -92,6 +92,16 @@ class Pig20Dataset(JointsDataset):
         self.parent_ids = None
         self.sigmas = np.array([.26,.25, .35, .79, .72, .62, 1.07, .87, .89, .30, 
                                     .25, .35, .79, .72, .62, 1.07, .87, .89, 2.0, .35]) / 10.0
+        self.upper_body_ids = (0,1,2,3,4,5,10,11,12,13,14,19)
+        self.lower_body_ids = (6,7,8,9,15,16,17,18)
+        self.joints_weight = np.array(
+            [
+                1., 1., 1., 1.2, 1.5, 2.0, 1.2, 1.5, 2.0, 1., 
+                1., 1., 1.2, 1.5, 2.0, 1.2, 1.5, 2.0, 2.0, 1. 
+            ],
+            dtype=np.float32
+        ).reshape((self.num_joints, 1))
+        
         self.db = self._get_db()
 
         if is_train and cfg.DATASET.SELECT_DATA:

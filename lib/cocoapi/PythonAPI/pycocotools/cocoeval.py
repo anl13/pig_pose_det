@@ -526,8 +526,11 @@ class Params:
             self.kpt_oks_sigmas = np.array([.24, .72, .72, .18, .62, .23, .56, .26, .38, .28, .29, .48, .23, .60, .47])/10.0
         elif kptType=='pig20': # 20 kpts 
             self.kpt_oks_sigmas = np.array([.26,.25, .35, .79, .72, .62, 1.07, .87, .89, .30, 
-                                    .25, .35, .79, .72, .62, 1.07, .87, .89, 2.0, .35]) / 10.0
-
+                                    .25, .35, .79, .72, .62, 1.07, .87, .89, 2.0, .35]) / 20.0
+        elif kptType=='pig15': # 15 kpts 
+            self.kpt_oks_sigmas = np.asarray([
+                35, 35, 26, 79, 62, 79, 62, 107,87,89,107,87,89,30,200
+            ])/2000.0
     def __init__(self, iouType='segm', kptType='coco17'):
         if iouType == 'segm' or iouType == 'bbox':
             self.setDetParams()

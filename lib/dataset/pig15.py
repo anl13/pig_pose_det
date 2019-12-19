@@ -83,7 +83,10 @@ class PIGDataset(JointsDataset):
 
         self.num_joints = 15
         # add by wst 2019-11-10
-        self.sigmas=np.asarray([0.03807887, 0.11313708, 0.1142366 , 0.02783882, 0.09848858,0.03605551, 0.0887412 , 0.04153312, 0.06062178, 0.04358899,0.04582576, 0.07516648, 0.03605551, 0.09394147, 0.07399324])
+        # self.sigmas=np.asarray([0.03807887, 0.11313708, 0.1142366, 0.02783882, 0.09848858,0.03605551, 0.0887412 , 0.04153312, 0.06062178, 0.04358899,0.04582576, 0.07516648, 0.03605551, 0.09394147, 0.07399324])
+        self.sigmas = np.asarray([
+            35, 35, 26, 79, 62, 79, 62, 107,87,89,107,87,89,30,200
+        ])/1000.0
         self.flip_pairs = [[0, 1], [3, 5], [4, 6], [7, 10],
                            [8, 11], [9, 12]]
         self.parent_ids = None
@@ -446,7 +449,7 @@ class PIGDataset(JointsDataset):
 
     def _do_python_keypoint_eval(self, res_file, res_folder):
         coco_dt = self.coco.loadRes(res_file)
-        coco_eval = COCOeval(self.coco, coco_dt, 'keypoints', kptType='atrw')
+        coco_eval = COCOeval(self.coco, coco_dt, 'keypoints', kptType='pig15')
         coco_eval.params.useSegm = None
         coco_eval.evaluate()
         coco_eval.accumulate()

@@ -12,5 +12,5 @@ from .mpii import MPIIDataset as mpii
 from .coco import COCODataset as coco
 from .pig20 import Pig20Dataset as pig20
 from .atrw import ATRWDataset as atrw
-from .pig import PIGDataset as pig
+from .pig15 import PIGDataset as pig15
 from .pig17 import PIG17Dataset as pig17

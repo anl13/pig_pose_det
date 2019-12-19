@@ -62,12 +62,12 @@ TRAIN:
   MOMENTUM: 0.9
   NESTEROV: false
 TEST:
-  BATCH_SIZE_PER_GPU: 16
+  BATCH_SIZE_PER_GPU: 32
   FLIP_TEST: false
-  MODEL_FILE: 'output/pig20/pose_resnet_152/288x384_d256x3_adam_lr1e-3/final_state.pth.tar'
+  MODEL_FILE: 'output/pig20/pose_resnet_152/288x384_d256x3_adam_lr1e-3/model_best.pth.tar'
   USE_GT_BBOX: true
 DEBUG:
-  DEBUG: true
+  DEBUG: false
   SAVE_BATCH_IMAGES_GT: true
   SAVE_BATCH_IMAGES_PRED: true
   SAVE_HEATMAPS_GT: false

@@ -36,6 +36,7 @@ def locate_cuda():
     if 'CUDAHOME' in os.environ:
         home = os.environ['CUDAHOME']
         nvcc = pjoin(home, 'bin', 'nvcc')
+        print('local cuda:', home)
     else:
         # otherwise, search the PATH for NVCC
         default_path = pjoin(os.sep, 'usr', 'local', 'cuda', 'bin')
@@ -124,7 +125,7 @@ ext_modules = [
         # we're only going to use certain compiler args with nvcc and not with
         # gcc the implementation of this trick is in customize_compiler() below
         extra_compile_args={'gcc': ["-Wno-unused-function"],
-                            'nvcc': ['-arch=sm_35',
+                            'nvcc': ['-arch=sm_75',
                                      '--ptxas-options=-v',
                                      '-c',
                                      '--compiler-options',

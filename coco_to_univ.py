@@ -42,7 +42,7 @@ def convert_atrw(infile, outfile):
         kpts = ann['keypoints'].copy()
         ann['keypoints'] = map_keypoints(kpts, mapping_atrw) 
         new_anns.append(ann) 
-    data['categories'] = new_cat 
+    data['categories'] = [new_cat] 
     data['annotations'] = new_anns 
     with open(outfile, 'w') as f: 
         json.dump(data, f)   
@@ -57,14 +57,16 @@ def convert_pig(infile, outfile):
         kpts = ann['keypoints'].copy()
         ann['keypoints'] = map_keypoints(kpts, mapping_pig20) 
         new_anns.append(ann) 
-    data['categories'] = new_cat 
+    data['categories'] = [new_cat] 
     data['annotations'] = new_anns 
     with open(outfile, 'w') as f: 
         json.dump(data, f)   
-    from IPython import embed; embed() 
 
 if __name__ == "__main__":
-    infile = "data/pig20/annotations/train_pig_cocostyle.json"
-    outfile = "data/pig_univ/annotations/train_pig_cocostyle.json" 
+    infile = "data/pig20/annotations/eval_pig_cocostyle.json"
+    outfile = "data/pig_univ/annotations/eval_pig_cocostyle.json" 
     convert_pig(infile, outfile) 
 
+    # infile = "data/atrw/annotations/keypoints_trainval.json"
+    # outfile = "data/atrw_univ/annotations/keypoints_trainval.json"
+    # convert_atrw(infile, outfile)

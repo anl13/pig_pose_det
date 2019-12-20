@@ -531,7 +531,7 @@ class Params:
             self.kpt_oks_sigmas = np.asarray([
                 35, 35, 25, 79, 62, 79, 62, 79, 72, 62, 79,72,62,25,100
             ])/2000.0
-        elif kptType=='atrw_univ' or kptType=='pig_univ':
+        elif kptType=='univ':
             self.kpt_oks_sigmas = np.asarray([
                 25,25,25,35,35, 79,79,72,72,62,62,79,79,72,72,62,62,100,25,100,100,50,30
             ])/2000.0

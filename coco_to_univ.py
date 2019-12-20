@@ -46,6 +46,7 @@ def convert_atrw(infile, outfile):
     data['annotations'] = new_anns 
     with open(outfile, 'w') as f: 
         json.dump(data, f)   
+    from IPython import embed; embed() 
 
 def convert_pig(infile, outfile):
     data = read_old_json(infile) 
@@ -61,11 +62,28 @@ def convert_pig(infile, outfile):
     data['annotations'] = new_anns 
     with open(outfile, 'w') as f: 
         json.dump(data, f)   
+    from IPython import embed; embed() 
+
+def convert_iccv2019(infile, outfile):
+    data = read_old_json(infile) 
+    mapping_iccv2019 = [4,0,1,2,3,8,9,12,13,16,17,10,11,14,15,18,19,5,6,7,-1,-1,-1] 
+    new_cat = univ_cat_info.copy() 
+    new_cat['name'] = "pig"
+    new_anns = [] 
+    for ann in data['annotations']:
+        kpts = ann['keypoints'].copy()
+        ann['keypoints'] = map_keypoints(kpts, mapping_iccv2019) 
+        new_anns.append(ann) 
+    data['categories'] = [new_cat] 
+    data['annotations'] = new_anns 
+    with open(outfile, 'w') as f: 
+        json.dump(data, f)   
+    from IPython import embed; embed() 
 
 if __name__ == "__main__":
-    infile = "data/pig20/annotations/eval_pig_cocostyle.json"
-    outfile = "data/pig_univ/annotations/eval_pig_cocostyle.json" 
-    convert_pig(infile, outfile) 
+    infile = "data/iccv2019/annotations/animalpose_val.json"
+    outfile = "data/iccv2019_univ/annotations/animalpose_val.json" 
+    convert_iccv2019(infile, outfile) 
 
     # infile = "data/atrw/annotations/keypoints_trainval.json"
     # outfile = "data/atrw_univ/annotations/keypoints_trainval.json"

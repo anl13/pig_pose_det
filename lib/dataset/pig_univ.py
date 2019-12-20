@@ -382,7 +382,7 @@ class PigUnivDataset(JointsDataset):
 
     def _do_python_keypoint_eval(self, res_file, res_folder):
         coco_dt = self.coco.loadRes(res_file)
-        coco_eval = COCOeval(self.coco, coco_dt, 'keypoints', kptType='pig20')
+        coco_eval = COCOeval(self.coco, coco_dt, 'keypoints', kptType='univ')
         coco_eval.params.useSegm = None
         coco_eval.evaluate()
         coco_eval.accumulate()

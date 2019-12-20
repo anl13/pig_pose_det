@@ -362,7 +362,6 @@ class ATRWDataset(JointsDataset):
 
         self._write_coco_keypoint_results(
             oks_nmsed_kpts, res_file)
-        from IPython import embed; embed() 
         if 'test' not in self.image_set:
             info_str = self._do_python_keypoint_eval(
                 res_file, res_folder)

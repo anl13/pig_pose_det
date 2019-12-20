@@ -15,7 +15,7 @@ DATASET:
   DATASET: 'atrw_univ'
   DATA_FORMAT: jpg
   FLIP: true
-  NUM_JOINTS_HALF_BODY: 7
+  NUM_JOINTS_HALF_BODY: 13
   PROB_HALF_BODY: 0.5
   ROOT: 'data/atrw_univ/'
   ROT_FACTOR: 45

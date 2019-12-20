@@ -14,3 +14,5 @@ from .pig20 import Pig20Dataset as pig20
 from .atrw import ATRWDataset as atrw
 from .pig15 import PIGDataset as pig15
 from .pig17 import PIG17Dataset as pig17
+from .pig_univ import PigUnivDataset as pig_univ 
+from .atrw_univ import ATRWUnivDataset as atrw_univ

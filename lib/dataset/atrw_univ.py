@@ -84,14 +84,9 @@ class ATRWUnivDataset(JointsDataset):
         self.parent_ids = None
         self.upper_body_ids = (0,1,2,3,4,5,6,7,8,9,10,17,19)
         self.lower_body_ids = (11,12,13,14,15,16,18,21,22,20)
-
-        # self.joints_weight = np.array(
-        #     [
-        #         1.2, 1., 1., 1.2, 1., 1.2, 1.,
-        #         2.0, 1.5, 1.2, 1.2, 1.1, 1.1, 1., 1.1
-        #     ],
-        #     dtype=np.float32
-        # ).reshape((self.num_joints, 1))                   # data: 0716
+        self.sigmas = np.asarray([
+                25,25,25,35,35, 79,79,72,72,62,62,79,79,72,72,62,62,100,25,100,100,50,30
+            ])/2000.0
         self.joints_weight = np.array(
             [
                 1,1,1,1,1,
@@ -340,12 +335,12 @@ class ATRWUnivDataset(JointsDataset):
             if self.soft_nms:
                 keep = soft_oks_nms(
                     [img_kpts[i] for i in range(len(img_kpts))],
-                    oks_thre
+                    oks_thre, sigmas=self.sigmas
                 )
             else:
                 keep = oks_nms(
                     [img_kpts[i] for i in range(len(img_kpts))],
-                    oks_thre
+                    oks_thre, sigmas=self.sigmas
                 )
 
             if len(keep) == 0:

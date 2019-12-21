@@ -90,8 +90,8 @@ class Pig20Dataset(JointsDataset):
         self.num_joints = 20
         self.flip_pairs = [ [1,10], [2,11], [3,12], [4, 13], [5, 14], [6, 15], [7,16],[8,17]]
         self.parent_ids = None
-        self.sigmas = np.array([.26,.25, .35, .79, .72, .62, 1.07, .87, .89, .30, 
-                                    .25, .35, .79, .72, .62, 1.07, .87, .89, 2.0, .35]) / 10.0
+        self.sigmas = np.array([.25,.25, .35, .79, .72, .62, .79, .72, .62, .25, 
+                                    .25, .35, .79, .72, .62, .79, .72, .62, 1.0, .35]) / 20.0
         self.upper_body_ids = (0,1,2,3,4,5,10,11,12,13,14,19)
         self.lower_body_ids = (6,7,8,9,15,16,17,18)
         self.joints_weight = np.array(

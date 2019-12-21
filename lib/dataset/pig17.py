@@ -89,7 +89,7 @@ class PIG17Dataset(JointsDataset):
         self.parent_ids = None
         self.upper_body_ids = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
         self.lower_body_ids = (11, 12, 13, 14, 15, 16)
-
+        self.sigmas =  np.array([.26, .25, .25, .35, .35, .79, .79, .72, .72, .62,.62, 1.07, 1.07, .87, .87, .89, .89])/10.0 # same to coco17 
         self.joints_weight = np.array(
             [
                 1., 1., 1., 1., 1., 1., 1., 1.2, 1.2,
@@ -437,7 +437,7 @@ class PIG17Dataset(JointsDataset):
 
     def _do_python_keypoint_eval(self, res_file, res_folder):
         coco_dt = self.coco.loadRes(res_file)
-        coco_eval = COCOeval(self.coco, coco_dt, 'keypoints', kptType='atrw')
+        coco_eval = COCOeval(self.coco, coco_dt, 'keypoints', kptType='coco17')
         coco_eval.params.useSegm = None
         coco_eval.evaluate()
         coco_eval.accumulate()

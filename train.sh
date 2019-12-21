@@ -7,4 +7,4 @@
 #     --cfg 'experiments/pig/hrnet_w48_384x384.yaml'
 
 CUDA_VISIBLE_DEVICES=0,1,2,3 python pose_estimation/train.py \
-      --cfg 'experiments/atrw/w48_384x384_univ.yaml'
+      --cfg 'experiments/pig/w48_384x384_univ.yaml'

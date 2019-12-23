@@ -20,7 +20,7 @@ DATASET:
   ROOT: 'data/pig15/'
   ROT_FACTOR: 45
   SCALE_FACTOR: 0.35
-  TEST_SET: 'eval'
+  TEST_SET: 'train'
   TRAIN_SET: 'train'
 MODEL:
   INIT_WEIGHTS: true

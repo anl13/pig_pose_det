@@ -57,7 +57,7 @@ class COCOeval:
     # Data, paper, and tutorials available at:  http://mscoco.org/
     # Code written by Piotr Dollar and Tsung-Yi Lin, 2015.
     # Licensed under the Simplified BSD License [see coco/license.txt]
-    def __init__(self, cocoGt=None, cocoDt=None, iouType='segm', kptType='coco17'):
+    def __init__(self, cocoGt=None, cocoDt=None, iouType='segm', kptType='coco17', ignoreKpt=None):
         '''
         Initialize CocoEval using coco APIs for gt and dt
         :param cocoGt: coco object with ground truth annotations
@@ -79,7 +79,7 @@ class COCOeval:
         if not cocoGt is None:
             self.params.imgIds = sorted(cocoGt.getImgIds())
             self.params.catIds = sorted(cocoGt.getCatIds())
-
+        self.ignoreKpt = kptMask
 
     def _prepare(self):
         '''
@@ -511,6 +511,7 @@ class Params:
         self.useCats = 1
 
     def setKpParams(self, kptType):
+        print("kptType:", kptType)
         self.imgIds = []
         self.catIds = []
         # np.arange causes trouble.  the data point on arange is slightly larger than the true value

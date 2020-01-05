@@ -112,7 +112,7 @@ TEST:
   BBOX_THRE: 1.0
   IMAGE_THRE: 0.0
   IN_VIS_THRE: 0.2
-  # MODEL_FILE: 'output/pig/pose_hrnet/w48_384x288-tiger/model_best.pth'
+  MODEL_FILE: 'output/pig-tiger/pig15/pose_hrnet/w48_384x288-tiger-anliang/model_best.pth'
   NMS_THRE: 1.0
   OKS_THRE: 0.9
   USE_GT_BBOX: true

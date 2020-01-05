@@ -266,6 +266,16 @@ class PigUnivDataset(JointsDataset):
             self.image_thre, num_boxes))
         return kpt_db
 
+    def evaluate_on_results(self, cfg, output_dir):
+        res_folder = os.path.join(output_dir, 'results')
+        res_file = os.path.join(
+            res_folder, 'keypoints_%s_results.json' % self.image_set)
+        info_str = self._do_python_keypoint_eval(
+                res_file, res_folder)
+        name_value = OrderedDict(info_str)
+        print(info_str)
+        return name_value, name_value['AP']
+
     # need double check this API and classes field
     def evaluate(self, cfg, preds, output_dir, all_boxes, img_path,
                  *args, **kwargs):
@@ -384,8 +394,9 @@ class PigUnivDataset(JointsDataset):
         return cat_results
 
     def _do_python_keypoint_eval(self, res_file, res_folder):
+        ignore = [7,8,1,2,17,19,21,22]
         coco_dt = self.coco.loadRes(res_file)
-        coco_eval = COCOeval(self.coco, coco_dt, 'keypoints', kptType='univ')
+        coco_eval = COCOeval(self.coco, coco_dt, 'keypoints', kptType='univ', ignoreKpt=ignore)
         coco_eval.params.useSegm = None
         coco_eval.evaluate()
         coco_eval.accumulate()

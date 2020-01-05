@@ -96,20 +96,21 @@ def main(seq, is_vis=False):
             transforms.ToTensor(),
             normalize,
         ])
-    for frameid in tqdm(range(0,10000)):
+    for frameid in tqdm(range(10000)):
         
         output_pkl  = "/home/al17/animal/pig-data/sequences/{}/keypoints_hrnet/{:06d}.pkl".format(seq, frameid)
         output_json = "/home/al17/animal/pig-data/sequences/{}/keypoints_hrnet/{:06d}.json".format(seq, frameid)
-
-        camids = [0,1,2,5,6,7,8,9,10,11]
-        boxfile = "/home/al17/animal/pig-data/sequences/{}/boxes/boxes_{:06d}.pkl".format(seq,frameid)
         keypoints_dict = {} 
+        camids = [0,1,2,5,6,7,8,9,10,11]
+        boxfile = "/home/al17/animal/pig-data/sequences/{}/boxes_mm/boxes_{:06d}.json".format(seq,frameid)
         with open(boxfile, 'rb') as f: 
-            boxes_allviews = pickle.load(f, encoding='latin1')
+            boxes_allviews = json.load(f)
         for camid in camids: 
             imgfile = "/home/al17/animal/pig-data/sequences/{}/images/cam{}/{:06d}.jpg".format(seq,camid, frameid)
             rawimg = cv2.imread(imgfile) 
             boxes = boxes_allviews[str(camid)]
+            # from IPython import embed; embed() 
+            # exit() 
             if len(boxes) == 0:
                 keypoints_dict.update({str(camid):[]})
                 continue
@@ -145,5 +146,5 @@ def main(seq, is_vis=False):
 if __name__ == '__main__':
     seq1 = "20190704_morning" 
     seq2 = "20190704_noon"
-    main(seq1, is_vis=True)
-    # main(seq2) 
+    main(seq1, is_vis=False)
+    main(seq2, is_vis=False) 

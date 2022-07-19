@@ -122,7 +122,7 @@ The output is 23 keypoints, where only 19 are non-zero valid ones. See [BamaPig2
 
 ## Citation
 If you use this code in your research, please cite the paper 
-```
+```BibTex
 @article{MAMMAL, 
     author = {An, Liang and Ren, Jilong and Yu, Tao and Jia, Yichang and Liu, Yebin},
     title = {Three-dimensional surface motion capture of multiple freely moving pigs using MAMMAL},

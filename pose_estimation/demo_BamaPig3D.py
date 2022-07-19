@@ -120,6 +120,8 @@ def main():
         for camid in camids: 
             rawimg = cv2.imread(folder + "/images/cam{}/{:06d}.jpg".format(camid,frameid))
             boxes = boxes_allviews[str(camid)]
+            # from IPython import embed; embed() 
+            # exit() 
             if len(boxes) == 0:
                 keypoints_dict.update({str(camid):[]})
                 continue

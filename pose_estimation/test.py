@@ -25,7 +25,7 @@ import _init_paths
 from config import cfg
 from config import update_config
 from core.loss import JointsMSELoss
-from core.function import validate
+from core.function import validate, validate_on_results
 from utils.utils import create_logger
 
 import dataset
@@ -61,7 +61,7 @@ def parse_args():
                         help='prev Model directory',
                         type=str,
                         default='')
-
+    parser.add_argument('--exist', action='store_true') 
     args = parser.parse_args()
     return args
 
@@ -76,25 +76,6 @@ def main():
     logger.info(pprint.pformat(args))
     logger.info(cfg)
 
-    # cudnn related setting
-    cudnn.benchmark = cfg.CUDNN.BENCHMARK
-    torch.backends.cudnn.deterministic = cfg.CUDNN.DETERMINISTIC
-    torch.backends.cudnn.enabled = cfg.CUDNN.ENABLED
-
-    model = eval('models.'+cfg.MODEL.NAME+'.get_pose_net')(
-        cfg, is_train=False
-    )
-
-    load_state_dict_module(model, cfg.TEST.MODEL_FILE)
-
-    model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
-    # model = model.cuda()
-
-    # define loss function (criterion) and optimizer
-    criterion = JointsMSELoss(
-        use_target_weight=cfg.LOSS.USE_TARGET_WEIGHT
-    ).cuda()
-
     # Data loading code
     normalize = transforms.Normalize(
         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
@@ -106,21 +87,43 @@ def main():
             normalize,
         ])
     )
-    from termcolor import cprint 
-    cprint("eval dataset : ", "red")
-    print(cfg.DATASET.DATASET) 
-    valid_loader = torch.utils.data.DataLoader(
-        valid_dataset,
-        batch_size=cfg.TEST.BATCH_SIZE_PER_GPU*len(cfg.GPUS),
-        shuffle=False,
-        num_workers=1,
-        pin_memory=True
-    )
 
-    # evaluate on validation set
-    validate(cfg, valid_loader, valid_dataset, model, criterion,
+    if not args.exist: 
+        # cudnn related setting
+        cudnn.benchmark = cfg.CUDNN.BENCHMARK
+        torch.backends.cudnn.deterministic = cfg.CUDNN.DETERMINISTIC
+        torch.backends.cudnn.enabled = cfg.CUDNN.ENABLED
+
+        model = eval('models.'+cfg.MODEL.NAME+'.get_pose_net')(
+            cfg, is_train=False
+        )
+
+        load_state_dict_module(model, cfg.TEST.MODEL_FILE)
+
+        model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
+        # model = model.cuda()
+
+        # define loss function (criterion) and optimizer
+        criterion = JointsMSELoss(
+            use_target_weight=cfg.LOSS.USE_TARGET_WEIGHT
+        ).cuda()
+
+
+        from termcolor import cprint 
+        cprint("eval dataset : ", "red")
+        print(cfg.DATASET.DATASET) 
+        valid_loader = torch.utils.data.DataLoader(
+            valid_dataset,
+            batch_size=cfg.TEST.BATCH_SIZE_PER_GPU*len(cfg.GPUS),
+            shuffle=False,
+            num_workers=1,
+            pin_memory=True
+        )
+    
+        validate(cfg, valid_loader, valid_dataset, model, criterion,
              final_output_dir, tb_log_dir)
-
+    else: 
+        validate_on_results(cfg, valid_dataset, final_output_dir) 
 
 if __name__ == '__main__':
     main()

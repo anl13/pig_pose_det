@@ -47,6 +47,7 @@ cd lib
 make
 cd ..
 ```
+Note that, before doing this, you should modify `lib/nms/setup_linux.py` line 128 by changing `arch=sm_75` to the version compatible with your own GPU. See https://arnon.dk/matching-sm-architectures-arch-and-gencode-for-various-nvidia-cards/ for more guidance. 
 6. Build cocoapi. Note that, DO NOT use the official verision `pycocotools` because we modified `cocoeval.py` to accommodate our [BamaPig2D dataset](https://github.com/anl13/MAMMAL_datasets).
 ```
 cd lib/cocoapi/PythonAPI

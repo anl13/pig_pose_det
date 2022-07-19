@@ -93,6 +93,9 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
             save_debug_images(config, input, meta, target, pred*4, output,
                               prefix)
 
+def validate_on_results(config, val_dataset, output_dir):
+    print("validate on results") 
+    val_dataset.evaluate_on_results(config, output_dir) 
 
 def validate(config, val_loader, val_dataset, model, criterion, output_dir,
              tb_log_dir, writer_dict=None):

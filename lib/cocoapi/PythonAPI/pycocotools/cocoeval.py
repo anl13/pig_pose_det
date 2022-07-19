@@ -57,7 +57,7 @@ class COCOeval:
     # Data, paper, and tutorials available at:  http://mscoco.org/
     # Code written by Piotr Dollar and Tsung-Yi Lin, 2015.
     # Licensed under the Simplified BSD License [see coco/license.txt]
-    def __init__(self, cocoGt=None, cocoDt=None, iouType='segm', kptType='coco17'):
+    def __init__(self, cocoGt=None, cocoDt=None, iouType='segm', kptType='coco17', ignoreKpt=None):
         '''
         Initialize CocoEval using coco APIs for gt and dt
         :param cocoGt: coco object with ground truth annotations
@@ -79,7 +79,7 @@ class COCOeval:
         if not cocoGt is None:
             self.params.imgIds = sorted(cocoGt.getImgIds())
             self.params.catIds = sorted(cocoGt.getCatIds())
-
+        self.ignoreKpt = ignoreKpt
 
     def _prepare(self):
         '''
@@ -206,10 +206,19 @@ class COCOeval:
         vars = (sigmas * 2)**2
         k = len(sigmas)
         # compute oks between each detection and ground truth object
+        # from IPython import embed; embed() 
+        # exit() 
+        # print(k) 
+        gt_mask = np.ones(k) 
+        if self.ignoreKpt is not None: 
+            gt_mask[self.ignoreKpt] = 0 
         for j, gt in enumerate(gts):
             # create bounds for ignore regions(double the gt bbox)
             g = np.array(gt['keypoints'])
             xg = g[0::3]; yg = g[1::3]; vg = g[2::3]
+            xg = xg * gt_mask 
+            yg = yg * gt_mask 
+            vg = vg * gt_mask 
             k1 = np.count_nonzero(vg > 0)
             bb = gt['bbox']
             x0 = bb[0] - bb[2]; x1 = bb[0] + bb[2] * 2
@@ -511,6 +520,7 @@ class Params:
         self.useCats = 1
 
     def setKpParams(self, kptType):
+        print("kptType:", kptType)
         self.imgIds = []
         self.catIds = []
         # np.arange causes trouble.  the data point on arange is slightly larger than the true value

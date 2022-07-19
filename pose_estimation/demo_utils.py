@@ -46,7 +46,7 @@ def box_xywh2cs(box_xywh):
     return xywh2cs(x,y,w,h) 
 
 def box_xyxy2cs(box_xyxy):
-    x1,y1,x2,y2 = box_xyxy 
+    x1,y1,x2,y2 = box_xyxy[0:4]
     return xywh2cs(x1,y1,x2-x1,y2-y1)
 
 # [input] img: img loaded by cv2.imread(filename) 

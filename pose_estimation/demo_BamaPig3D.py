@@ -67,11 +67,15 @@ def parse_args():
                         help='prev Model directory',
                         type=str,
                         default='')
+    parser.add_argument('--dataset_folder', type=str)
+    parser.add_argument('--GPUS',type=str, default='(0,)')
+    parser.add_argument('--vis', type=bool, default=False)
+    parser.add_argument('--write_json', type=bool, default=True)
     args = parser.parse_args()
     return args
 
 
-def main(seq, is_vis=False):
+def main():
     args = parse_args()
     update_config(cfg, args)
     # cudnn related setting
@@ -85,7 +89,8 @@ def main(seq, is_vis=False):
 
     load_state_dict_module(model, cfg.TEST.MODEL_FILE)
 
-    model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
+    #model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
+    model.cuda()
     model.eval() 
 
     # Data loading code
@@ -96,25 +101,31 @@ def main(seq, is_vis=False):
             transforms.ToTensor(),
             normalize,
         ])
-    for frameid in tqdm(range(0,10000)):
-        
-        output_pkl  = "/home/al17/animal/pig-data/sequences/{}/keypoints_hrnet/{:06d}.pkl".format(seq, frameid)
-        output_json = "/home/al17/animal/pig-data/sequences/{}/keypoints_hrnet/{:06d}.json".format(seq, frameid)
 
-        camids = [0,1,2,5,6,7,8,9,10,11]
-        boxfile = "/home/al17/animal/pig-data/sequences/{}/boxes/boxes_{:06d}.pkl".format(seq,frameid)
+    folder = args.dataset_folder + "/"
+
+    camids = [0,1,2,5,6,7,8,9,10,11]
+    ## output folder for keypoints
+    keypoint_folder = folder + "/keypoints_hrnet/"
+    if not os.path.exists(keypoint_folder): 
+        os.mkdir(keypoint_folder)
+    
+    for frameid in tqdm(range(1750)):
+        output_json = keypoint_folder + "/{:06d}.json".format(frameid)
+        ## need to read bounding boxes to guide image cropping
+        boxfile = folder +  "/boxes_pr/{:06d}.json".format(frameid)
         keypoints_dict = {} 
-        with open(boxfile, 'rb') as f: 
-            boxes_allviews = pickle.load(f, encoding='latin1')
+        with open(boxfile, 'r') as f: 
+            boxes_allviews = json.load(f) 
         for camid in camids: 
-            imgfile = "/home/al17/animal/pig-data/sequences/{}/images/cam{}/{:06d}.jpg".format(seq,camid, frameid)
-            rawimg = cv2.imread(imgfile) 
+            rawimg = cv2.imread(folder + "/images/cam{}/{:06d}.jpg".format(camid,frameid))
             boxes = boxes_allviews[str(camid)]
             if len(boxes) == 0:
                 keypoints_dict.update({str(camid):[]})
                 continue
             net_input, all_c, all_s = preprocess(rawimg, boxes, mytransforms=mytransforms, image_size=cfg.MODEL.IMAGE_SIZE)
-            net_out = model(net_input) # heatmaps [N,15,288,384]
+            net_input = net_input.cuda()
+            net_out = model(net_input) # heatmaps [N,23,96,96]
             num_samples = len(boxes) 
             all_preds = np.zeros((num_samples, cfg.MODEL.NUM_JOINTS, 3), dtype=np.float32) 
             all_boxes = np.zeros((num_samples, 6))
@@ -129,21 +140,17 @@ def main(seq, is_vis=False):
             all_boxes[0: num_samples, 5] = 1
             keypoints_dict.update({str(camid):all_preds.reshape(num_samples, cfg.MODEL.NUM_JOINTS*3).tolist()})
 
-            if is_vis: 
-                vis = draw_keypoints(rawimg, all_preds, conf_thres=0.2, dataType=cfg.DATASET.DATASET) 
+            if args.vis: 
+                vis = draw_keypoints(rawimg, all_preds, conf_thres=0.5, dataType=cfg.DATASET.DATASET) 
                 vis_rgb = vis[:,:,(2,1,0)]
-                cv2.namedWindow("hrnet", cv2.WINDOW_NORMAL)
-                cv2.imshow("hrnet", vis) 
+                cv2.namedWindow("hrnet_estimation", cv2.WINDOW_NORMAL)
+                cv2.imshow("hrnet_estimation", vis) 
                 key = cv2.waitKey() 
                 if key == 27: 
                     exit() 
-        with open(output_pkl, 'wb') as f: 
-            pickle.dump(keypoints_dict, f, protocol=2) 
-        with open(output_json, "w") as f: 
-            json.dump(keypoints_dict, f)
+        if args.write_json: 
+            with open(output_json, "w") as f: 
+                json.dump(keypoints_dict, f)
 
 if __name__ == '__main__':
-    seq1 = "20190704_morning" 
-    seq2 = "20190704_noon"
-    main(seq1, is_vis=True)
-    # main(seq2) 
+    main()

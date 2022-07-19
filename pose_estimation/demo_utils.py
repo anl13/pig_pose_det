@@ -42,7 +42,7 @@ def xywh2cs(x, y, w, h):
     return center, scale
 
 def box_xywh2cs(box_xywh):
-    x,y,w,h = box 
+    x,y,w,h = box_xywh
     return xywh2cs(x,y,w,h) 
 
 def box_xyxy2cs(box_xyxy):
@@ -93,16 +93,32 @@ COLORS = [
 ]
 
 # img: [H,W,C]
-# preds: [N, 15, 3]
+# preds: [N, 23, 3]
 SKEL = {
-    "pig": [[0, 2], [1, 2], [2, 14], [5, 6], [5, 14], [3, 4], [3, 14],
-    [13, 14], [9, 8], [8, 7], [7, 13], [12, 11], [11, 10], [10, 13]], 
-    "pig20" : [[0,1], [1,2], [0,10], [10,11], [0,19], [19,18], [18,9], 
-        [19,12], [19, 3], [9, 15], [9,6], [12, 13], [13,14], 
-        [15,16], [16,17], [3,4], [4,5], [6,7], [7,8] ]
+    "pig_univ" : [
+        [0,1],
+        [0,2],
+        [1,2],
+        [1,3], 
+        [2,4],
+        [0,20], 
+        [20,18],
+        [20,5],
+        [5,7],
+        [7,9],
+        [20,6],
+        [6,8],
+        [8,10],
+        [18,11],
+        [11,13], 
+        [13,15],
+        [18,12],
+        [12,14],
+        [14,16]
+    ]
 }
 
-def draw_keypoints(img, preds, conf_thres=0.8, dataType="pig"):
+def draw_keypoints(img, preds, conf_thres=0.8, dataType="pig_univ"):
     out = img.copy() 
     for idx, pred in enumerate(preds):
         color = COLORS[idx]

@@ -53,7 +53,6 @@ class PigUnivDataset(JointsDataset):
         self.image_width = cfg.MODEL.IMAGE_SIZE[0]
         self.image_height = cfg.MODEL.IMAGE_SIZE[1]
         self.aspect_ratio = self.image_width * 1.0 / self.image_height
-        print("DEBUG: PIG20 image size: ", cfg.MODEL.IMAGE_SIZE)
         self.pixel_std = 200
         self.coco = COCO(self._get_ann_file_keypoint())
         
@@ -90,7 +89,7 @@ class PigUnivDataset(JointsDataset):
                 1, 1.2, 1, 2, 1,1
             ],
             dtype=np.float32
-        ).reshape((self.num_joints, 1))                     # data: 0717
+        ).reshape((self.num_joints, 1)) 
         
         self.db = self._get_db()
 

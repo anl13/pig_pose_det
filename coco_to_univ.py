@@ -81,10 +81,14 @@ def convert_iccv2019(infile, outfile):
     from IPython import embed; embed() 
 
 if __name__ == "__main__":
-    infile = "data/iccv2019/annotations/animalpose_val.json"
-    outfile = "data/iccv2019_univ/annotations/animalpose_val.json" 
-    convert_iccv2019(infile, outfile) 
+    #infile = "data/iccv2019/annotations/animalpose_val.json"
+    #outfile = "data/iccv2019_univ/annotations/animalpose_val.json" 
+    #convert_iccv2019(infile, outfile) 
 
     # infile = "data/atrw/annotations/keypoints_trainval.json"
     # outfile = "data/atrw_univ/annotations/keypoints_trainval.json"
     # convert_atrw(infile, outfile)
+    infile = "/Data/anliang/dataset/pig20210225/annotations/train_pig_cocostyle.json"
+    outfile = "/Data/anliang/dataset/pig20210225_univ/annotations/train_pig_cocostyle.json"
+    convert_pig(infile, outfile)
+    
